@@ -5,6 +5,16 @@ action on left-click and/or show a context menu on right-click.
 
 ---
 
+## Installation
+
+1. Install [Windhawk](https://windhawk.net/).
+2. Open **Windhawk** and go to **Explore** → **Search**.
+3. Enter **Ultimate Custom Tray** in the search field.
+4. In the results, select [Ultimate Custom Tray](https://windhawk.net/mods/ultimate-custom-tray).
+5. Click the "Install" button.
+
+---
+
 ## Quick start
 
 1. Open Windhawk settings for this mod.
