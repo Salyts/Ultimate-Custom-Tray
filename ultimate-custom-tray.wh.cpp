@@ -2,7 +2,7 @@
 // @id              ultimate-custom-tray
 // @name            Ultimate Custom Tray
 // @description     Custom tray icons with actions, context menus and image icon support.
-// @version         1.1
+// @version         2.0
 // @author          Salyts
 // @license         MIT
 // @github          https://github.com/Salyts
@@ -12,7 +12,7 @@
 
 // ==WindhawkModReadme==
 /*
-# Ultimate Custom Tray 1.1
+# Ultimate Custom Tray 2.0
 
 Adds your own icons to the system tray. Each icon can run an
 action on left-click and/or show a context menu on right-click.
@@ -24,7 +24,7 @@ action on left-click and/or show a context menu on right-click.
 1. Open Windhawk settings for this mod.
 2. Add one or more **Items** to the list.
 3. Fill in **Label**, **Icon** and **Action** for each item.
-4. Save — the icons appear in the tray immediately.
+4. Save - the icons appear in the tray immediately.
 
 ---
 
@@ -33,10 +33,10 @@ action on left-click and/or show a context menu on right-click.
 | Prefix | Example | Description |
 |--------|---------|-------------|
 | `" "` | `"C:\Program Files\Windhawk\windhawk.exe"` | Opens a file or folder by absolute path. |
-| `~` | `~Downloads` or `~windhawk.exe` | Opens a folder or file by name. |
+| `~` | `~Downloads` and `~windhawk.exe` | Opens a folder or file by name. |
 | `cmd:` | `cmd:control` | Runs a command through `cmd.exe`. |
 | `shell:` | `shell:shutdown /r /f /t 0` | Runs through `powershell.exe`. |
-| `press:` | `press:Win;E` or `press:0x5Bn;0x45` | Keyboard key press using a [Win32 key code](https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes). |
+| `press:` | `press:Win+E` or `press:0x5Bn;0x45` | Keyboard key press using a [Win32 key code](https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes). |
 | `web:` | `web:https://windhawk.net/` | Opens a URL in the default browser. |
 | `ms-settings:` | `ms-settings:bluetooth` | Opens a Windows Settings page. |
 
@@ -65,17 +65,44 @@ Signs can be combined: `-*cmd:tasklist` runs cmd in a visible window as admin.
 
 ### Icon color
 
-- **Auto** — detects the current Windows theme (light/dark) on every click and redraws the tray icon accordingly.
-- **White** — always white (for dark taskbar).
-- **Black** — always black (for light taskbar).
+- **Auto** - detects the current Windows theme (light/dark) on every click and redraws the tray icon accordingly.
+- **White** - always white (for dark taskbar).
+- **Black** - always black (for light taskbar).
 
 ### Context menu color
 
-- **Auto** — follows the current Windows theme automatically.
-- **Light** — light background, dark icons.
-- **Dark** — dark background, light icons.
+- **Auto** - follows the current Windows theme automatically.
+- **Light** - light background, dark icons.
+- **Dark** - dark background, light icons.
 
 Controls the background and icon color inside the right-click context menu.
+
+---
+
+## Context Menu Settings
+
+### Open menu near tray icon
+
+When enabled, the context menu opens near the tray icon instead of at the cursor position. This allows precise positioning relative to the icon.
+
+### Menu direction
+
+Choose where the menu appears relative to the tray icon:
+- **Above icon** - menu opens above the icon
+- **Below icon** - menu opens below the icon
+- **Left of icon** - menu opens to the left
+- **Right of icon** - menu opens to the right
+
+### Menu alignment
+
+Controls how the menu is aligned relative to the icon:
+- **Center** - menu is centered on the icon
+- **Left** - menu's left edge aligns with the icon
+- **Right** - menu's right edge aligns with the icon
+
+### Menu offset
+
+Distance in pixels between the tray icon and the menu (0-200). Default is 10px.
 */
 // ==/WindhawkModReadme==
 
@@ -95,6 +122,29 @@ Controls the background and icon color inside the right-click context menu.
   - auto: Auto
   - light: Light
   - dark: Dark
+- MenuSettings:
+  - menu_near_icon: false
+    $name: Open menu near tray icon
+    $description: "When enabled, menu opens near the tray icon instead of at cursor position."
+  - menu_direction: "top"
+    $name: Menu direction
+    $description: "Direction from the tray icon where menu appears (only when 'Open menu near tray icon' is enabled)."
+    $options:
+    - top: Above icon
+    - bottom: Below icon
+    - left: Left of icon
+    - right: Right of icon
+  - menu_alignment: center
+    $name: Menu alignment
+    $description: "How the menu is aligned relative to the icon (only when 'Open menu near tray icon' is enabled)."
+    $options:
+    - center: Center
+    - left: Left
+    - right: Right
+  - menu_offset: 10
+    $name: Menu offset
+    $description: "Distance in pixels between the tray icon and menu (0-200, only when 'Open menu near tray icon' is enabled)."
+  $name: Context Menu Settings
 - items:
     - - label: "Explorer"
         $name: Label
@@ -172,6 +222,13 @@ static UINT                  WM_TASKBARCREATED = 0;
 
 static std::wstring g_iconColorMode  = L"auto";
 static std::wstring g_menuColorMode  = L"auto";
+static bool g_menuNearIcon = false;
+static std::wstring g_menuDirection = L"top";
+static std::wstring g_menuAlignment = L"center";
+static int g_menuOffset = 10;
+static HMENU g_currentMenu = nullptr;
+static UINT g_currentMenuItemId = (UINT)-1;
+static DWORD g_lastMenuCloseTime = 0;
 
 static bool IsSystemDarkMode() {
     DWORD value = 1;
@@ -363,7 +420,7 @@ static HICON CreateGlyphIcon(WCHAR glyph, int size, bool white) {
     HFONT font = CreateFontW(
         -size, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
         DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-        ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE,
+        CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE,
         L"Segoe Fluent Icons");
         
     HFONT oldFont = (HFONT)SelectObject(memDC, font);
@@ -457,9 +514,9 @@ static WORD ResolveKeyToken(const std::wstring& tok) {
     if (tok.empty()) return 0;
 
     std::wstring lo = ToLower(tok);
-    if (lo == L"ctrl")        return VK_LCONTROL;
-    if (lo == L"alt")         return VK_LMENU;
-    if (lo == L"shift")       return VK_LSHIFT;
+    if (lo == L"ctrl")        return VK_CONTROL;
+    if (lo == L"alt")         return VK_MENU;
+    if (lo == L"shift")       return VK_SHIFT;
     if (lo == L"win")         return VK_LWIN;
 
     if (lo == L"enter")       return VK_RETURN;
@@ -493,14 +550,14 @@ static WORD ResolveKeyToken(const std::wstring& tok) {
 
     if (tok.size() >= 2 && tok[0] == L'0' && (tok[1] == L'x' || tok[1] == L'X')) {
         long v = wcstol(tok.c_str(), nullptr, 16);
-        if (v > 0 && v < 0xFF) return (WORD)v;
+        if (v > 0 && v <= 0xFF) return (WORD)v;
         Wh_Log(L"press: hex VK out of range: %s", tok.c_str());
         return 0;
     }
 
     if (iswdigit(tok[0])) {
         long v = wcstol(tok.c_str(), nullptr, 10);
-        if (v > 0 && v < 0xFF) return (WORD)v;
+        if (v > 0 && v <= 0xFF) return (WORD)v;
         Wh_Log(L"press: decimal VK out of range: %s", tok.c_str());
         return 0;
     }
@@ -541,23 +598,17 @@ static void SendVirtualKeypress(const std::wstring& keysStr) {
         return;
     }
 
-    size_t n = keys.size();
-    std::vector<INPUT> inputs(n * 2);
-    for (size_t i = 0; i < n; i++) {
-        inputs[i] = {};
-        inputs[i].type       = INPUT_KEYBOARD;
-        inputs[i].ki.wVk     = keys[i];
-        inputs[i].ki.dwFlags = 0;
+    for (size_t i = 0; i < keys.size(); i++) {
+        keybd_event((BYTE)keys[i], 0, 0, 0);
+        Sleep(10);
     }
-    for (size_t i = 0; i < n; i++) {
-        inputs[n + i] = {};
-        inputs[n + i].type       = INPUT_KEYBOARD;
-        inputs[n + i].ki.wVk     = keys[i];
-        inputs[n + i].ki.dwFlags = KEYEVENTF_KEYUP;
+
+    Sleep(100);
+
+    for (size_t i = keys.size(); i > 0; i--) {
+        keybd_event((BYTE)keys[i - 1], 0, KEYEVENTF_KEYUP, 0);
+        Sleep(10);
     }
-    UINT sent = SendInput((UINT)(n * 2), inputs.data(), sizeof(INPUT));
-    if (sent != (UINT)(n * 2))
-        Wh_Log(L"press: SendInput sent %u/%zu events", sent, n * 2);
 }
 
 static void ParseActionSigns(const std::wstring& raw,
@@ -816,9 +867,122 @@ static void ApplyMenuTheme(HWND hWnd, bool dark) {
     }
 }
 
+struct MenuPosition {
+    POINT pt;
+    UINT flags;
+};
+
+static MenuPosition GetMenuPositionNearIcon(UINT itemId) {
+    MenuPosition result = {};
+    result.flags = TPM_RIGHTBUTTON | TPM_RETURNCMD | TPM_NONOTIFY;
+
+    if (!g_menuNearIcon) {
+        GetCursorPos(&result.pt);
+        return result;
+    }
+
+    NOTIFYICONIDENTIFIER nii = {};
+    nii.cbSize = sizeof(NOTIFYICONIDENTIFIER);
+    nii.hWnd = g_trayHwnd;
+    nii.uID = itemId;
+
+    {
+        std::lock_guard<std::mutex> lk(g_itemsMutex);
+        if (itemId < g_items.size()) {
+            nii.guidItem = g_items[itemId].guid;
+        }
+    }
+
+    RECT iconRect = {};
+    HRESULT hr = Shell_NotifyIconGetRect(&nii, &iconRect);
+
+    if (FAILED(hr)) {
+        GetCursorPos(&result.pt);
+        return result;
+    }
+
+    int iconCenterX = (iconRect.left + iconRect.right) / 2;
+    int iconCenterY = (iconRect.top + iconRect.bottom) / 2;
+
+    int offset = (g_menuOffset >= 0 && g_menuOffset <= 200) ? g_menuOffset : 10;
+
+    if (g_menuDirection == L"top") {
+        result.pt.x = iconCenterX;
+        result.pt.y = iconRect.top - offset;
+
+        if (g_menuAlignment == L"center") {
+            result.flags |= TPM_CENTERALIGN | TPM_BOTTOMALIGN;
+        } else if (g_menuAlignment == L"left") {
+            result.flags |= TPM_LEFTALIGN | TPM_BOTTOMALIGN;
+            result.pt.x = iconRect.left;
+        } else if (g_menuAlignment == L"right") {
+            result.flags |= TPM_RIGHTALIGN | TPM_BOTTOMALIGN;
+            result.pt.x = iconRect.right;
+        }
+    } else if (g_menuDirection == L"bottom") {
+        result.pt.x = iconCenterX;
+        result.pt.y = iconRect.bottom + offset;
+
+        if (g_menuAlignment == L"center") {
+            result.flags |= TPM_CENTERALIGN | TPM_TOPALIGN;
+        } else if (g_menuAlignment == L"left") {
+            result.flags |= TPM_LEFTALIGN | TPM_TOPALIGN;
+            result.pt.x = iconRect.left;
+        } else if (g_menuAlignment == L"right") {
+            result.flags |= TPM_RIGHTALIGN | TPM_TOPALIGN;
+            result.pt.x = iconRect.right;
+        }
+    } else if (g_menuDirection == L"left") {
+        result.pt.x = iconRect.left - offset;
+        result.pt.y = iconCenterY;
+
+        if (g_menuAlignment == L"center") {
+            result.flags |= TPM_RIGHTALIGN | TPM_VCENTERALIGN;
+        } else if (g_menuAlignment == L"left") {
+            result.flags |= TPM_RIGHTALIGN | TPM_TOPALIGN;
+            result.pt.y = iconRect.top;
+        } else if (g_menuAlignment == L"right") {
+            result.flags |= TPM_RIGHTALIGN | TPM_BOTTOMALIGN;
+            result.pt.y = iconRect.bottom;
+        }
+    } else if (g_menuDirection == L"right") {
+        result.pt.x = iconRect.right + offset;
+        result.pt.y = iconCenterY;
+
+        if (g_menuAlignment == L"center") {
+            result.flags |= TPM_LEFTALIGN | TPM_VCENTERALIGN;
+        } else if (g_menuAlignment == L"left") {
+            result.flags |= TPM_LEFTALIGN | TPM_TOPALIGN;
+            result.pt.y = iconRect.top;
+        } else if (g_menuAlignment == L"right") {
+            result.flags |= TPM_LEFTALIGN | TPM_BOTTOMALIGN;
+            result.pt.y = iconRect.bottom;
+        }
+    } else {
+        result.pt.x = iconCenterX;
+        result.pt.y = iconRect.top - offset;
+        result.flags |= TPM_CENTERALIGN | TPM_BOTTOMALIGN;
+    }
+
+    return result;
+}
+
 static void ShowContextMenu(HWND hWnd, UINT itemId,
                             const std::vector<ContextMenuItem>& items) {
     if (items.empty()) return;
+
+    DWORD currentTime = GetTickCount();
+    if (currentTime - g_lastMenuCloseTime < 300) {
+        return;
+    }
+
+    if (g_currentMenu != nullptr) {
+        EndMenu();
+        g_currentMenu = nullptr;
+        g_currentMenuItemId = (UINT)-1;
+        g_lastMenuCloseTime = GetTickCount();
+        return;
+    }
 
     bool dark = MenuUseDark();
 
@@ -828,6 +992,9 @@ static void ShowContextMenu(HWND hWnd, UINT itemId,
 
     HMENU hMenu = CreatePopupMenu();
     if (!hMenu) return;
+
+    g_currentMenu = hMenu;
+    g_currentMenuItemId = itemId;
 
     std::vector<HBITMAP> bitmaps;
     bitmaps.reserve(items.size());
@@ -852,11 +1019,13 @@ static void ShowContextMenu(HWND hWnd, UINT itemId,
         InsertMenuItemW(hMenu, (UINT)i, TRUE, &mii);
     }
 
-    POINT pt;
-    GetCursorPos(&pt);
-    int cmd = TrackPopupMenu(hMenu,
-                             TPM_RIGHTBUTTON | TPM_RETURNCMD | TPM_NONOTIFY,
-                             pt.x, pt.y, 0, hWnd, nullptr);
+    MenuPosition menuPos = GetMenuPositionNearIcon(itemId);
+    int cmd = TrackPopupMenu(hMenu, menuPos.flags,
+                             menuPos.pt.x, menuPos.pt.y, 0, hWnd, nullptr);
+
+    g_currentMenu = nullptr;
+    g_currentMenuItemId = (UINT)-1;
+    g_lastMenuCloseTime = GetTickCount();
 
     DestroyMenu(hMenu);
     for (auto b : bitmaps) DeleteObject(b);
@@ -954,6 +1123,28 @@ static void LoadAllSettings() {
         else if (wcscmp(pMenu, L"light") == 0) g_menuColorMode = L"light";
         Wh_FreeStringSetting(pMenu);
     }
+
+    g_menuNearIcon = Wh_GetIntSetting(L"MenuSettings.menu_near_icon") != 0;
+
+    PCWSTR pDirection = Wh_GetStringSetting(L"MenuSettings.menu_direction");
+    g_menuDirection = L"top";
+    if (pDirection) {
+        if (wcscmp(pDirection, L"bottom") == 0) g_menuDirection = L"bottom";
+        else if (wcscmp(pDirection, L"left") == 0) g_menuDirection = L"left";
+        else if (wcscmp(pDirection, L"right") == 0) g_menuDirection = L"right";
+        Wh_FreeStringSetting(pDirection);
+    }
+
+    PCWSTR pAlignment = Wh_GetStringSetting(L"MenuSettings.menu_alignment");
+    g_menuAlignment = L"center";
+    if (pAlignment) {
+        if (wcscmp(pAlignment, L"left") == 0) g_menuAlignment = L"left";
+        else if (wcscmp(pAlignment, L"right") == 0) g_menuAlignment = L"right";
+        Wh_FreeStringSetting(pAlignment);
+    }
+
+    g_menuOffset = Wh_GetIntSetting(L"MenuSettings.menu_offset");
+    if (g_menuOffset < 0 || g_menuOffset > 200) g_menuOffset = 10;
 
     UpdateTrayIcons(true);
     DestroyAllIcons();
