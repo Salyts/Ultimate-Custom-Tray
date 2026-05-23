@@ -2,8 +2,7 @@
 
 This mod adds customizable system tray icons in Windows with configurable actions and context menus, support for image files and application icons, and automatic adaptation to the system theme.
 
-[• Russian documentation <](https://github.com/Salyts/Ultimate-Custom-Tray/blob/main/README_RU.md)
-
+### [> Russian documentation <](https://github.com/Salyts/Ultimate-Custom-Tray/blob/main/README_RU.md)
 ---
 
 ## Installation
