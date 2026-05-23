@@ -1,7 +1,6 @@
-# Ultimate Custom Tray 2.0
+# Ultimate Custom Tray 2.1
 
-Adds your own icons to the system tray. Each icon can run an
-action on left-click and/or show a context menu on right-click.
+This mod adds customizable system tray icons in Windows with configurable actions and context menus, support for image files and application icons, and automatic adaptation to the system theme.
 
 ---
 
@@ -28,7 +27,7 @@ action on left-click and/or show a context menu on right-click.
 
 | Prefix | Example | Description |
 |--------|---------|-------------|
-| `" "` | `"C:\Program Files\Windhawk\windhawk.exe"` | Opens a file or folder by absolute path. |
+| `" "` | `"C:\Program Files\Windhawk\windhawk.exe"` | Opens a file or folder by path. |
 | `~` | `~Downloads` and `~windhawk.exe` | Opens a folder or file by name. |
 | `cmd:` | `cmd:control` | Runs a command through `cmd.exe`. |
 | `shell:` | `shell:shutdown /r /f /t 0` | Runs through `powershell.exe`. |
@@ -57,7 +56,7 @@ Signs can be combined: `-*cmd:tasklist` runs cmd in a visible window as admin.
 
 ---
 
-## Style options
+## Style Settings
 
 ### Icon color
 
@@ -99,6 +98,31 @@ Controls how the menu is aligned relative to the icon:
 ### Menu offset
 
 Distance in pixels between the tray icon and the menu (0-200). Default is 10px.
+
+---
+
+## Tray Items
+
+Each item in the **Tray Items** list becomes a separate icon in the system tray. You can add multiple items to create a collection of custom tray icons.
+
+### Item Settings
+
+- **Label** - Tooltip text shown when hovering over the tray icon.
+- **Icon** - The icon to display. Can be a glyph code (e.g., "EC50"), image file path, or executable path.
+- **Action** - Command or action to execute when the icon is left-clicked (or right-clicked if buttons are swapped).
+- **Swap mouse buttons** - When enabled, left-click opens the context menu and right-click runs the action.
+- **Context menu** - List of menu items shown on right-click (or left-click if buttons are swapped).
+
+### Context Menu Items
+
+Each context menu item has the following settings:
+
+- **State** - Controls visibility and interaction (Enabled/Disabled/Hidden).
+- **Name** - Text displayed in the menu.
+- **Description** - Optional text shown on the right side of the menu item (e.g., keyboard shortcut like "Win+E" or a hint).
+- **Icon** - Icon shown next to the menu item (glyph code, image, or executable path).
+- **Action** - Command to execute when the menu item is clicked.
+- **Separator** - Add a separator line above or below this item.
 
 ---
 
