@@ -1,7 +1,8 @@
 // ==WindhawkMod==
-// @id              ultimate-custom-tray2-fork
-// @name            Ultimate Custom Tray - Fork
+// @id              ultimate-custom-tray
+// @name            Ultimate Custom Tray
 // @description     This mod adds customizable system tray icons in Windows with configurable actions and context menus, support for image files and application icons, and automatic adaptation to the system theme.
+// @description:ru-RU   Этот мод добавляет настраиваемые иконки в системный трей Windows с возможностью назначения действий и контекстных меню, поддержкой файлов изображений и иконок приложений, а также автоматической адаптацией под тему системы.
 // @version         2.1
 // @author          Salyts
 // @license         MIT
@@ -15,6 +16,8 @@
 # Ultimate Custom Tray 2.1
 
 This mod adds customizable system tray icons in Windows with configurable actions and context menus, support for image files and application icons, and automatic adaptation to the system theme.
+
+### [> Russian documentation <](https://github.com/Salyts/Ultimate-Custom-Tray/blob/main/README_RU.md)
 
 ---
 
